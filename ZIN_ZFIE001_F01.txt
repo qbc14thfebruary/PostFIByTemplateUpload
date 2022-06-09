@@ -1,0 +1,799 @@
+FORM READ_FILE .
+  DATA: IT_TYPE   TYPE TRUXS_T_TEXT_DATA.
+
+*-------------------------------------------------*
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+      I_LINE_HEADER        = 'X'
+      I_TAB_RAW_DATA       = IT_TYPE
+      I_FILENAME           = P_FILE
+    TABLES
+      I_TAB_CONVERTED_DATA = GT_RAW
+    EXCEPTIONS
+      CONVERSION_FAILED    = 1
+      OTHERS               = 2.
+  IF GT_RAW IS INITIAL.
+    MESSAGE E001(ZC_CTEL_MESSAGE).
+  ENDIF.
+  DELETE GT_RAW INDEX 1.
+  DELETE GT_RAW INDEX 1.
+
+  LOOP AT GT_RAW INTO GS_RAW.
+    MOVE-CORRESPONDING GS_RAW TO GS_DATA.
+    CONCATENATE GS_RAW-DOC_DATE+4(4) GS_RAW-DOC_DATE+2(2) GS_RAW-DOC_DATE+0(2) INTO DATA(LV_DOC_DATE).
+    CONCATENATE GS_RAW-PSTNG_DATE+4(4) GS_RAW-PSTNG_DATE+2(2) GS_RAW-PSTNG_DATE+0(2) INTO DATA(LV_PSTNG_DATE).
+    IF GS_RAW-BLINE_DATE IS NOT INITIAL.
+      CONCATENATE GS_RAW-BLINE_DATE+4(4) GS_RAW-BLINE_DATE+2(2) GS_RAW-BLINE_DATE+0(2) INTO DATA(LV_BLINE_DATE).
+      GS_DATA-BLINE_DATE = LV_BLINE_DATE.
+    ENDIF.
+
+    GS_DATA-DOC_DATE = LV_DOC_DATE.
+    GS_DATA-PSTNG_DATE = LV_PSTNG_DATE.
+
+    APPEND GS_DATA TO GT_DATA.
+    CLEAR: GS_DATA, GS_RAW.
+  ENDLOOP.
+  CLEAR: GT_RAW.
+*  MOVE-CORRESPONDING GT_RAW TO GT_DATA.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form PROCESS_DATA
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM PROCESS_DATA .
+  LOOP AT GT_DATA ASSIGNING FIELD-SYMBOL(<FS_DATA>).
+    IF  ( <FS_DATA>-COMP_CODE  IS NOT INITIAL
+      AND <FS_DATA>-DOC_DATE   IS NOT INITIAL
+      AND <FS_DATA>-PSTNG_DATE IS NOT INITIAL
+      AND <FS_DATA>-PERIOD     IS NOT INITIAL
+      AND <FS_DATA>-DOC_TYPE   IS NOT INITIAL
+      AND <FS_DATA>-PSTNG_KEY  IS NOT INITIAL
+      AND ( <FS_DATA>-ACCOUNT  IS NOT INITIAL
+            OR <FS_DATA>-GL_ACCOUNT IS NOT INITIAL
+            OR <FS_DATA>-KUNNR  IS NOT INITIAL )
+      AND <FS_DATA>-CURRENCY   IS NOT INITIAL
+      AND <FS_DATA>-AMT_DOCCUR IS NOT INITIAL
+      AND <FS_DATA>-ITEM_TEXT  IS NOT INITIAL ).
+
+      <FS_DATA>-ICON = '@5B@'.
+    ELSE.
+      <FS_DATA>-ICON = '@5C@'.
+    ENDIF.
+  ENDLOOP.
+
+  PERFORM SHOW_ALV_DEFAULT.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form GET_ALV
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM SHOW_ALV_DEFAULT .
+  PERFORM CALL_ALV_FIELDCATALOG_MERGE USING 'ZST_FIE001'.
+
+  PERFORM GET_TEXT_OF_FIELDNAME.
+
+  PERFORM SHOW_REUSE_ALV_GRID_DISPLAY TABLES GT_DATA
+                                      USING 'SET_PF_STATUS'
+                                            'USER_COMMAND'.
+ENDFORM.
+
+FORM CALL_ALV_FIELDCATALOG_MERGE USING LS_STRUCTURE.
+  CALL FUNCTION 'REUSE_ALV_FIELDCATALOG_MERGE'
+    EXPORTING
+      I_PROGRAM_NAME         = SY-CPROG     "'ZPG_ZFIE001'
+      I_STRUCTURE_NAME       = LS_STRUCTURE "'ZST_EXERCISE4'
+    CHANGING
+      CT_FIELDCAT            = GT_FCAT
+    EXCEPTIONS
+      INCONSISTENT_INTERFACE = 1
+      PROGRAM_ERROR          = 2
+      OTHERS                 = 3.
+ENDFORM.
+
+FORM GET_TEXT_OF_FIELDNAME.
+  LOOP AT GT_FCAT INTO GS_FCAT.
+    CASE GS_FCAT-FIELDNAME.
+      WHEN 'ACCOUNT'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Account'.
+      WHEN 'AMT_LOCCUR'.
+        GS_FCAT-SELTEXT_S = 'Local Doc'.
+        GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Amount in Local currency'.
+      WHEN 'TAX_AMT'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Tax Amount'.
+      WHEN 'DICH_VU_CTEL'.
+        GS_FCAT-SELTEXT_S = 'D.vu Ctel'.
+        GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Dich Vu Ctel'.
+      WHEN 'THI_TRUONG_CTEL'.
+        GS_FCAT-SELTEXT_S = 'T.Truong Ctel'.
+        GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Thi Truong Ctel'.
+      WHEN 'TOA_NHA'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Toa Nha'.
+      WHEN 'DU_AN'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Du An'.
+      WHEN 'PYMT_TERM'.
+        GS_FCAT-SELTEXT_S = 'Pay Term'.
+        GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Payment Term' .
+      WHEN 'PYMT_BLOCK'.
+        GS_FCAT-SELTEXT_S = 'Pay Block'.
+        GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Payment block' .
+      WHEN 'INVID_PAYE'.
+        GS_FCAT-SELTEXT_S = 'Indicator'.
+        GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Indicator: Individual Payee in Document'.
+      WHEN 'NAME1'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Name'.
+      WHEN 'ADDRESS'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Addres'.
+      WHEN 'CITY'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'City'.
+      WHEN 'TAX_NUM'.
+        GS_FCAT-SELTEXT_S = GS_FCAT-SELTEXT_M = GS_FCAT-SELTEXT_L = 'Tax Number'.
+    ENDCASE.
+*    Amount in document currency
+    MODIFY GT_FCAT FROM GS_FCAT.
+    CLEAR: GS_FCAT.
+  ENDLOOP.
+ENDFORM.
+
+FORM SHOW_REUSE_ALV_GRID_DISPLAY TABLES LT_OUTTAB
+                                 USING  P_STATUS_SET
+                                        P_USER_COMMAND.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+    EXPORTING
+      I_CALLBACK_PROGRAM       = SY-CPROG       "'ZPG_ZFIE001'
+      I_CALLBACK_PF_STATUS_SET = P_STATUS_SET   " 'SET_PF_STATUS'
+      I_CALLBACK_USER_COMMAND  = P_USER_COMMAND "'USER_COMMAND'
+      IS_LAYOUT                = GS_LAYO
+      IT_FIELDCAT              = GT_FCAT
+    TABLES
+      T_OUTTAB                 = LT_OUTTAB
+    EXCEPTIONS
+      PROGRAM_ERROR            = 1
+      OTHERS                   = 2.
+  IF SY-SUBRC <> 0.
+* Implement suitable error handling here
+  ENDIF.
+ENDFORM.
+
+FORM SET_PF_STATUS USING RT_EXTAB TYPE SLIS_T_EXTAB.
+  CLEAR: RT_EXTAB.
+  SET PF-STATUS 'ZGUI_DEFAULT' EXCLUDING RT_EXTAB.
+ENDFORM.
+
+FORM SET_PF_STATUS_POST USING RT_EXTAB TYPE SLIS_T_EXTAB.
+  CLEAR: RT_EXTAB.
+  SET PF-STATUS 'ZGUI_POST' EXCLUDING RT_EXTAB.
+ENDFORM.
+
+FORM USER_COMMAND  USING R_UCOMM LIKE SY-UCOMM
+                         RS_SELFIELD TYPE SLIS_SELFIELD.
+  CASE R_UCOMM.
+    WHEN 'BACK'.
+      LEAVE TO SCREEN 0.
+    WHEN 'EXIT'.
+      LEAVE PROGRAM.
+    WHEN 'CANCEL'.
+      LEAVE TO SCREEN 0.
+    WHEN 'POST'.
+      PERFORM GET_MESSAGE.
+  ENDCASE.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form GET_MESSAGE
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM GET_MESSAGE .
+  DATA: CT_DATA TYPE TABLE OF ZST_FIE001.
+  DATA: LS_HEADER    TYPE BAPIACHE09,
+        LS_ONETIME   TYPE BAPIACPA09,
+        LV_COUNT     TYPE I,
+        LT_GLACC     TYPE BAPIACGL09_TAB,
+        LT_CUSTOMER  TYPE BAPIACAR09_TAB,
+        LT_VENDOR    TYPE BAPIACAP09_TAB,
+        LT_RETURN    TYPE BAPIRET2_TAB,
+        LT_CR        TYPE BAPIACCR09_TAB,
+        LT_TAX       TYPE BAPIACTX09_TAB,
+        LT_CRITERIA  TYPE BAPIACKEC9_TAB,
+        LS_CRITERIA  TYPE BAPIACKEC9,
+        LT_EXT       TYPE BAPIACEXTC_TAB,
+        LV_CREDIT    TYPE SHKZG,
+        LV_AMT       TYPE DMBTR,
+        LS_CUSTOMER  LIKE LINE OF LT_CUSTOMER,
+        LS_CR        LIKE LINE OF LT_CR,
+        LS_VENDOR    LIKE LINE OF LT_VENDOR,
+        LS_GLACC     LIKE LINE OF LT_GLACC,
+        LS_TAX       LIKE LINE OF LT_TAX,
+        LS_EXT       LIKE LINE OF LT_EXT,
+        LV_OBJTYPE   TYPE BAPIACHE09-OBJ_TYPE,
+        LV_OBJKEY    TYPE BAPIACHE09-OBJ_KEY,
+        LV_OBJSYS    TYPE BAPIACHE09-OBJ_SYS,
+        LS_RETURN    LIKE LINE OF LT_RETURN,
+        LS_T030K     TYPE T030K,
+        LT_T030K     TYPE TABLE OF T030K,
+        LV_BUPER     TYPE T009B-POPER,
+        LV_FIELD1    TYPE STRNG250,
+        LV_ITEM_LINE TYPE POSNR_ACC.
+
+
+  DATA: LT_EXT2 TYPE TABLE OF BAPIPAREX.
+
+  REFRESH: LT_T030K.
+
+  SELECT * FROM T030K INTO TABLE LT_T030K WHERE KTOPL = '8100'.
+  SORT LT_T030K BY KTOPL KTOSL MWSKZ.
+
+  FIELD-SYMBOLS: <FS_DATA> LIKE LINE OF CT_DATA,
+                 <FS_TAX>  LIKE LINE OF LT_TAX,
+                 <FS_CR>   LIKE LINE OF LT_CR.
+
+
+  MOVE-CORRESPONDING GT_DATA TO CT_DATA.
+  LOOP AT CT_DATA ASSIGNING <FS_DATA> WHERE ICON <> '@5C@'.
+    AT NEW ICON.
+      CLEAR: LS_HEADER, LS_ONETIME, LV_COUNT.
+      REFRESH: LT_GLACC, LT_CUSTOMER, LT_VENDOR, LT_RETURN, LT_CR, LT_TAX, LT_CRITERIA, LT_EXT.
+
+      "Header
+      LS_HEADER-COMP_CODE  = <FS_DATA>-COMP_CODE.
+      LS_HEADER-DOC_DATE   = <FS_DATA>-DOC_DATE.
+      LS_HEADER-DOC_TYPE   = <FS_DATA>-DOC_TYPE.
+      LS_HEADER-PSTNG_DATE = <FS_DATA>-PSTNG_DATE.
+      LS_HEADER-HEADER_TXT = <FS_DATA>-HEADER_TXT.
+      LS_HEADER-USERNAME   = SY-UNAME.
+      LS_HEADER-BUS_ACT    =  'RFBU'.
+      SELECT SINGLE PERIV FROM T001 WHERE BUKRS = @<FS_DATA>-COMP_CODE
+        INTO @DATA(LV_PERIV).
+      CALL FUNCTION 'DATE_TO_PERIOD_CONVERT'
+        EXPORTING
+          I_DATE         = <FS_DATA>-PSTNG_DATE
+          I_PERIV        = LV_PERIV
+        IMPORTING
+          E_BUPER        = LV_BUPER
+          E_GJAHR        = LS_HEADER-FISC_YEAR
+        EXCEPTIONS
+          INPUT_FALSE    = 1
+          T009_NOTFOUND  = 2
+          T009B_NOTFOUND = 3
+          OTHERS         = 4.
+      LS_HEADER-FIS_PERIOD = LV_BUPER+1(2).
+      LS_HEADER-FIS_PERIOD = <FS_DATA>-PERIOD+1(2).
+*      IF P_PARK IS NOT INITIAL.
+*        LS_HEADER-DOC_STATUS = '3'. "Checked and complete
+*      ELSEIF P_POST IS NOT INITIAL.
+*        LS_HEADER-DOC_STATUS = '4'. "Posted
+*      ENDIF.
+
+      " Item one time
+      LS_ONETIME-NAME = <FS_DATA>-NAME1.
+      LS_ONETIME-STREET = <FS_DATA>-ADDRESS.
+      LS_ONETIME-CITY = <FS_DATA>-CITY.
+      LS_ONETIME-TAX_NO_1 = <FS_DATA>-TAX_NUM.
+    ENDAT.
+    IF <FS_DATA>-TAX_CODE IS NOT INITIAL AND
+       <FS_DATA>-TAX_AMT IS INITIAL.
+      PERFORM CALCULATE_TAX USING <FS_DATA>-AMT_DOCCUR
+                                  <FS_DATA>-TAX_CODE
+                                  <FS_DATA>-COMP_CODE
+                                  <FS_DATA>-CURRENCY
+                                  <FS_DATA>-AMT_BASE
+                            CHANGING <FS_DATA>-TAX_AMT
+                                     <FS_DATA>-AMT_DOCCUR.
+    ENDIF.
+
+    LV_COUNT = LV_COUNT + 1.
+    CLEAR: LV_CREDIT, LV_AMT.
+    LV_CREDIT = 'S'.
+    SELECT *  FROM TBSL INTO TABLE @DATA(LT_TBSL) WHERE BSCHL = @<FS_DATA>-PSTNG_KEY.
+    READ TABLE LT_TBSL INTO DATA(LS_TBSL) INDEX 1.
+    IF SY-SUBRC EQ 0 .
+      CASE LS_TBSL-KOART.
+        WHEN 'D'.
+          CLEAR LS_CUSTOMER.
+          MOVE-CORRESPONDING <FS_DATA> TO LS_CUSTOMER.
+          LS_CUSTOMER-ITEMNO_ACC = LV_COUNT.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              INPUT  = <FS_DATA>-ACCOUNT
+            IMPORTING
+              OUTPUT = LS_CUSTOMER-CUSTOMER.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              INPUT  = <FS_DATA>-GL_ACCOUNT
+            IMPORTING
+              OUTPUT = LS_CUSTOMER-GL_ACCOUNT.
+          IF <FS_DATA>-BUSINESSPLACE IS INITIAL.
+            IF <FS_DATA>-ACCOUNT NP '333*' AND
+               <FS_DATA>-ACCOUNT NP '133*'.
+              LS_CUSTOMER-BUSINESSPLACE = '9999'.
+            ENDIF.
+          ENDIF.
+
+          APPEND LS_CUSTOMER TO LT_CUSTOMER.
+
+          CLEAR LS_CR.
+          MOVE-CORRESPONDING <FS_DATA> TO LS_CR.
+          LS_CR-CURRENCY  = <FS_DATA>-CURRENCY.
+          LS_CR-CURR_TYPE = '00'.  "Doc currency
+
+          IF LS_CR-ITEMNO_ACC IS INITIAL.
+            LS_CR-ITEMNO_ACC = LV_COUNT.
+          ENDIF.
+*          IF <FS_DATA>-INVID_PAYE IS NOT INITIAL.
+          IF LS_TBSL-SHKZG = 'H'. "<FS_DATA>-PSTNG_KEY = '11'.
+            LS_CR-AMT_DOCCUR      = LS_CR-AMT_DOCCUR * ( -1 ).
+            LS_CR-AMT_DOCCUR_LONG = LS_CR-AMT_DOCCUR.
+            LV_CREDIT = LS_TBSL-SHKZG. "'H'.
+          ENDIF.
+*          ENDIF.
+          LS_CR-AMT_DOCCUR_LONG = LS_CR-AMT_DOCCUR.
+          LV_AMT = LS_CR-AMT_DOCCUR.
+          CLEAR LS_CR-TAX_AMT.
+          APPEND LS_CR TO LT_CR.
+          IF <FS_DATA>-CMMT_ITEM IS NOT INITIAL. "Du an
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME = 'FIPOS'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-CMMT_ITEM.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+        WHEN 'K'.
+          CLEAR: LS_VENDOR.
+          MOVE-CORRESPONDING <FS_DATA> TO LS_VENDOR.
+          LS_VENDOR-ITEMNO_ACC = LV_COUNT.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              INPUT  = <FS_DATA>-ACCOUNT
+            IMPORTING
+              OUTPUT = LS_VENDOR-VENDOR_NO.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              INPUT  = <FS_DATA>-GL_ACCOUNT
+            IMPORTING
+              OUTPUT = LS_VENDOR-GL_ACCOUNT.
+          IF <FS_DATA>-BUSINESSPLACE IS INITIAL.
+            IF <FS_DATA>-ACCOUNT NP '333*' AND
+               <FS_DATA>-ACCOUNT NP '133*'.
+              LS_CUSTOMER-BUSINESSPLACE = '9999'.
+            ENDIF.
+          ENDIF.
+          APPEND LS_VENDOR TO LT_VENDOR.
+
+          CLEAR LS_CR.
+          MOVE-CORRESPONDING <FS_DATA> TO LS_CR.
+          LS_CR-CURRENCY = <FS_DATA>-CURRENCY.
+          LS_CR-CURR_TYPE = '00'.
+          IF LS_CR-ITEMNO_ACC IS INITIAL.
+            LS_CR-ITEMNO_ACC = LV_COUNT.
+          ENDIF.
+*          IF <FS_DATA>-INVID_PAYE IS NOT INITIAL.
+          IF LS_TBSL-SHKZG = 'H'.
+            LS_CR-AMT_DOCCUR = LS_CR-AMT_DOCCUR * ( -1 ).
+            LV_CREDIT = LS_TBSL-SHKZG.
+          ENDIF.
+*          ENDIF.
+          LS_CR-AMT_DOCCUR_LONG = LS_CR-AMT_DOCCUR.
+          CLEAR LS_CR-TAX_AMT.
+          APPEND LS_CR TO LT_CR.
+
+          IF <FS_DATA>-CMMT_ITEM IS NOT INITIAL. "Du an
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME = 'FIPOS'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-CMMT_ITEM.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+        WHEN OTHERS.
+          CLEAR LS_GLACC.
+          CLEAR LS_CR.
+          MOVE-CORRESPONDING <FS_DATA> TO LS_GLACC.
+          LS_GLACC-ITEMNO_ACC = LV_COUNT.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              INPUT  = <FS_DATA>-ACCOUNT
+            IMPORTING
+              OUTPUT = LS_GLACC-GL_ACCOUNT.
+          MOVE-CORRESPONDING <FS_DATA> TO LS_CR.
+*          IF <FS_DATA>-INVID_PAYE IS NOT INITIAL.
+          IF LS_TBSL-SHKZG = 'H'.
+            LS_CR-AMT_DOCCUR = LS_CR-AMT_DOCCUR * ( -1 ).
+            LV_CREDIT   = LS_TBSL-SHKZG.
+          ENDIF.
+*          ENDIF.
+          LS_CR-CURRENCY = <FS_DATA>-CURRENCY.
+          LS_CR-CURR_TYPE = '00'.
+          LS_CR-ITEMNO_ACC = LV_COUNT.
+
+          LS_CR-AMT_DOCCUR_LONG = LS_CR-AMT_DOCCUR.
+          CLEAR LS_CR-TAX_AMT.
+          LS_GLACC-DE_CRE_IND = LV_CREDIT.
+          APPEND LS_GLACC TO LT_GLACC.
+          APPEND LS_CR TO LT_CR.
+
+          IF <FS_DATA>-KUNNR IS NOT INITIAL.
+            CLEAR LS_CRITERIA.
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME  = 'KUNNR'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-KUNNR.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+          IF <FS_DATA>-DICH_VU_CTEL IS NOT INITIAL. "dich vu ctel
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME = 'WW100'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-DICH_VU_CTEL.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+          IF <FS_DATA>-THI_TRUONG_CTEL IS NOT INITIAL. "thi truong ctel
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME = 'WW105'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-THI_TRUONG_CTEL.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+          IF <FS_DATA>-TOA_NHA IS NOT INITIAL. "toa nha
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME = 'WW106'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-TOA_NHA.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+          IF <FS_DATA>-DU_AN IS NOT INITIAL. "Du an
+            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+            LS_CRITERIA-FIELDNAME = 'WW107'.
+            LS_CRITERIA-CHARACTER = <FS_DATA>-DU_AN.
+            APPEND LS_CRITERIA TO LT_CRITERIA.
+            CLEAR: LS_CRITERIA.
+          ENDIF.
+*          IF <FS_DATA>-FUNC_AREA1 IS NOT INITIAL.
+*            LS_CRITERIA-ITEMNO_ACC = LV_COUNT.
+*            LS_CRITERIA-FIELDNAME = 'FKBER'.
+*            LS_CRITERIA-CHARACTER = <FS_DATA>-FUNC_AREA1.
+*            APPEND LS_CRITERIA TO LT_CRITERIA.
+*            CLEAR: LS_CRITERIA.
+*          ENDIF.
+      ENDCASE.
+    ENDIF.
+
+    IF <FS_DATA>-REASON_CODE IS NOT INITIAL.
+      WRITE LV_COUNT TO LV_ITEM_LINE.
+      CONDENSE LV_ITEM_LINE.
+      CONCATENATE LV_ITEM_LINE 'reason_code' <FS_DATA>-REASON_CODE INTO LV_FIELD1.
+      CLEAR LS_EXT.
+      LS_EXT-FIELD1 = LV_FIELD1.
+      APPEND LS_EXT TO LT_EXT.
+    ENDIF.
+
+    IF <FS_DATA>-TAX_AMT IS NOT INITIAL.
+      READ TABLE LT_TAX WITH KEY TAX_CODE = <FS_DATA>-TAX_CODE ASSIGNING <FS_TAX>.
+      IF SY-SUBRC EQ 0 AND <FS_TAX> IS ASSIGNED.
+        READ TABLE LT_CR WITH KEY ITEMNO_ACC = <FS_TAX>-ITEMNO_ACC ASSIGNING <FS_CR>.
+        IF SY-SUBRC EQ 0 AND <FS_CR> IS ASSIGNED.
+          IF LV_CREDIT = 'H'.
+            <FS_CR>-AMT_DOCCUR = <FS_CR>-AMT_DOCCUR + <FS_DATA>-TAX_AMT * ( -1 ).
+            <FS_CR>-AMT_BASE   = <FS_CR>-AMT_BASE + <FS_DATA>-AMT_DOCCUR * ( -1 ).
+          ELSE.
+            <FS_CR>-AMT_DOCCUR = <FS_CR>-AMT_DOCCUR + <FS_DATA>-TAX_AMT .
+            <FS_CR>-AMT_BASE   = <FS_CR>-AMT_BASE + <FS_DATA>-AMT_DOCCUR.
+          ENDIF.
+          <FS_CR>-AMT_DOCCUR_LONG = <FS_CR>-AMT_DOCCUR.
+        ENDIF.
+      ELSE.
+        LV_COUNT = LV_COUNT + 1.
+        CLEAR LS_TAX.
+        LS_TAX-ITEMNO_ACC = LV_COUNT.
+        LS_TAX-TAX_CODE = <FS_DATA>-TAX_CODE.
+        READ TABLE LT_T030K WITH KEY MWSKZ = <FS_DATA>-TAX_CODE INTO LS_T030K.
+        IF SY-SUBRC EQ 0.
+          CALL FUNCTION 'CONVERSION_EXIT_ALPHA_INPUT'
+            EXPORTING
+              INPUT  = LS_T030K-KONTH
+            IMPORTING
+              OUTPUT = LS_TAX-GL_ACCOUNT.
+          LS_TAX-ACCT_KEY = LS_T030K-KTOSL.
+        ENDIF.
+        APPEND LS_TAX TO LT_TAX.
+
+
+        CLEAR LS_CR.
+        LS_CR-CURRENCY = <FS_DATA>-CURRENCY.
+        LS_CR-CURR_TYPE = '00'.  "Doc currency
+        LS_CR-ITEMNO_ACC = LV_COUNT.
+
+        IF LV_CREDIT = 'H'.
+          LS_CR-AMT_BASE   = <FS_DATA>-AMT_DOCCUR * ( -1 ).
+          LS_CR-TAX_AMT = LS_CR-AMT_DOCCUR = <FS_DATA>-TAX_AMT * ( -1 ).
+        ELSE.
+          LS_CR-AMT_BASE   = <FS_DATA>-AMT_DOCCUR.
+          LS_CR-TAX_AMT = LS_CR-AMT_DOCCUR = <FS_DATA>-TAX_AMT.
+        ENDIF.
+        LS_CR-AMT_DOCCUR_LONG = LS_CR-AMT_DOCCUR.
+        CLEAR LS_CR-TAX_AMT.
+        APPEND LS_CR TO LT_CR.
+      ENDIF.
+    ENDIF.
+
+    AT END OF ICON.
+      IF P_PARK IS NOT INITIAL.
+        CALL FUNCTION 'BAPI_ACC_DOCUMENT_CHECK'
+          EXPORTING
+            DOCUMENTHEADER    = LS_HEADER
+            CUSTOMERCPD       = LS_ONETIME
+          TABLES
+            ACCOUNTGL         = LT_GLACC
+            ACCOUNTRECEIVABLE = LT_CUSTOMER
+            ACCOUNTPAYABLE    = LT_VENDOR
+            ACCOUNTTAX        = LT_TAX
+            CURRENCYAMOUNT    = LT_CR
+            CRITERIA          = LT_CRITERIA
+            EXTENSION1        = LT_EXT
+            RETURN            = LT_RETURN.
+      ENDIF.
+      IF P_POST IS NOT INITIAL.
+        CALL FUNCTION 'BAPI_ACC_DOCUMENT_POST'
+          EXPORTING
+            DOCUMENTHEADER    = LS_HEADER
+            CUSTOMERCPD       = LS_ONETIME
+          IMPORTING
+            OBJ_TYPE          = LV_OBJTYPE
+            OBJ_KEY           = LV_OBJKEY
+            OBJ_SYS           = LV_OBJSYS
+          TABLES
+            ACCOUNTGL         = LT_GLACC
+            ACCOUNTRECEIVABLE = LT_CUSTOMER
+            ACCOUNTPAYABLE    = LT_VENDOR
+            ACCOUNTTAX        = LT_TAX
+            CURRENCYAMOUNT    = LT_CR
+            CRITERIA          = LT_CRITERIA
+            EXTENSION1        = LT_EXT
+*           EXTENSION2        = LT_EXT2      "Go to Enhance from se24=>YCL_EXM_IM_ACC_DOCUMENT=>IF_EX_ACC_DOCUMENT~CHANGE
+            RETURN            = LT_RETURN.
+      ENDIF.
+*      BREAK QUYNHBC.
+    ENDAT.
+  ENDLOOP.
+
+  CLEAR: GT_FCAT, GS_FCAT.
+  PERFORM CALL_ALV_FIELDCATALOG_MERGE USING 'ZST_FIE001'.
+  PERFORM GET_TEXT_OF_FIELDNAME.
+
+  LOOP AT GT_DATA ASSIGNING <FS_DATA>.
+    IF <FS_DATA>-ICON <> '@5C@'.
+      IF LT_RETURN IS NOT INITIAL.
+        READ TABLE LT_RETURN INTO LS_RETURN WITH KEY TYPE   = 'S'
+                                                     ID     = 'RW'
+                                                     NUMBER = '605'.
+        IF SY-SUBRC = 0.
+          MESSAGE S003(ZC_CTEL_MESSAGE) INTO <FS_DATA>-MESSAGE WITH LS_RETURN-MESSAGE_V2+0(10)
+                                                                    LS_RETURN-MESSAGE_V2+10(4)
+                                                                    LS_RETURN-MESSAGE_V2+14(4).
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'
+            EXPORTING
+              WAIT   = 'X'
+            IMPORTING
+              RETURN = LS_RETURN.
+        ELSE.
+          DATA: LV_MESS TYPE ZMESSAGE.
+          LOOP AT LT_RETURN INTO LS_RETURN WHERE TYPE = 'E' AND
+                                                 NUMBER <> '609'.
+            CONCATENATE LV_MESS LS_RETURN-MESSAGE INTO LV_MESS SEPARATED BY '/'.
+            CLEAR: LS_RETURN.
+          ENDLOOP.
+          IF LV_MESS IS NOT INITIAL.
+*            MESSAGE E004(ZC_CTEL_MESSAGE) INTO <FS_DATA>-MESSAGE WITH LV_MESS.
+            <FS_DATA>-MESSAGE = LV_MESS.
+            <FS_DATA>-ICON = '@5C@'.
+            CLEAR: LV_MESS.
+          ELSE.
+            <FS_DATA>-MESSAGE = 'No error occurred. You can Post'.
+*            <FS_DATA>-ICON = '@5C@'.
+          ENDIF.
+
+        ENDIF.
+      ENDIF.
+    ELSE.
+      IF <FS_DATA>-COMP_CODE  IS INITIAL.
+        DATA(MESS1) = 'Company Code'.
+      ENDIF.
+      IF <FS_DATA>-PSTNG_DATE  IS INITIAL.
+        DATA(MESS2) = 'Posting Date'.
+      ENDIF.
+      IF <FS_DATA>-PERIOD  IS INITIAL.
+        DATA(MESS3) = 'Posting period'.
+      ENDIF.
+      IF <FS_DATA>-PSTNG_KEY  IS INITIAL.
+        DATA(MESS4) = 'Posting Key'.
+      ENDIF.
+      IF <FS_DATA>-ACCOUNT  IS INITIAL.
+        DATA(MESS5) = 'Account'.
+      ENDIF.
+      IF <FS_DATA>-CURRENCY  IS INITIAL.
+        DATA(MESS6) = 'CURRENCY'.
+      ENDIF.
+      IF <FS_DATA>-AMT_DOCCUR IS INITIAL.
+        DATA(MESS7) = 'Amount in document currency'.
+      ENDIF.
+      IF <FS_DATA>-ITEM_TEXT IS INITIAL.
+        DATA(MESS8) = 'Item Text'.
+      ENDIF.
+      CONCATENATE MESS1 MESS2 MESS3 MESS4 MESS5 MESS6 MESS7 MESS8
+                  INTO DATA(MESS)
+                  SEPARATED BY SPACE.
+      CONDENSE MESS.
+      MESSAGE E005(ZC_CTEL_MESSAGE) INTO <FS_DATA>-MESSAGE WITH MESS.
+      CLEAR: MESS1, MESS2, MESS3, MESS4, MESS5, MESS6, MESS7, MESS8, MESS.
+    ENDIF.
+  ENDLOOP.
+  COMMIT WORK AND WAIT.
+  PERFORM SHOW_REUSE_ALV_GRID_DISPLAY TABLES GT_DATA
+                                      USING 'SET_PF_STATUS_POST'
+                                            'USER_COMMAND'.
+*  COMMIT WORK AND WAIT.
+ENDFORM.
+
+*&---------------------------------------------------------------------*
+*& Form CALCULATE_TAX
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+
+
+FORM CALCULATE_TAX USING    IV_AMT_DOCCUR TYPE  BAPIDOCCUR
+                            IV_TAX_CODE   TYPE  MWSKZ
+                            IV_COMP_CODE  TYPE  BUKRS
+                            IV_CURRENCY   TYPE  WAERS
+                            IV_AMT_BASE TYPE  BAPIDOCCUR
+                   CHANGING CV_TAX_AMT TYPE  BAPITAXAMT
+                            CV_AMT_DOCCUR TYPE  BAPIDOCCUR.
+  DATA: LV_TAX TYPE BSET-FWSTE,
+        LV_AMT TYPE BSEG-WRBTR.
+
+*  LV_AMT = IV_AMT_DOCCUR.
+  LV_AMT = IV_AMT_BASE.
+
+  DATA: LT_MWDAT TYPE TABLE OF RTAX1U15.
+  CALL FUNCTION 'CALCULATE_TAX_FROM_NET_AMOUNT'
+    EXPORTING
+      I_BUKRS           = IV_COMP_CODE     " Company code
+      I_MWSKZ           = IV_TAX_CODE      " Tax code
+*     I_TXJCD           = SPACE            " Tax jurisdiction code
+      I_WAERS           = IV_CURRENCY      " Currency key
+      I_WRBTR           = LV_AMT           " Net amount
+*     I_ZBD1P           = 0                " Cash discount percentage rate
+*     I_PRSDT           =
+*     I_PROTOKOLL       =
+*     I_TAXPS           =
+*     I_ACCNT_EXT       =
+*     I_ACCDATA         =                  " Accounting Document Segment
+*     I_PRICING_REFRESH_TX = SPACE
+    IMPORTING
+*     E_FWNAV           =                  " Non-deductible tax calculated (total)
+*     E_FWNVV           =                  " Non-deductible tax calculated which is allocated
+      E_FWSTE           = LV_TAX           " Tax calculated (total)
+*     E_FWAST           =                  " Calculated deductible tax
+    TABLES
+      T_MWDAT           = LT_MWDAT         " Table of tax values and percentage rates
+    EXCEPTIONS
+      BUKRS_NOT_FOUND   = 1                " Company code specified does not exist
+      COUNTRY_NOT_FOUND = 2                " The country specified in T001 does not exist
+      MWSKZ_NOT_DEFINED = 3                " Tax code not defined in calculation procedure
+      MWSKZ_NOT_VALID   = 4                " Tax code not allowed in the calculation procedure
+      KTOSL_NOT_FOUND   = 5
+      KALSM_NOT_FOUND   = 6
+      PARAMETER_ERROR   = 7
+      KNUMH_NOT_FOUND   = 8
+      KSCHL_NOT_FOUND   = 9                " Condition Type Not Found
+      UNKNOWN_ERROR     = 10               " Unknown error
+      ACCOUNT_NOT_FOUND = 11               " Error in Account Determination
+      TXJCD_NOT_VALID   = 12
+      OTHERS            = 13.
+  IF SY-SUBRC <> 0.
+    RETURN.
+  ENDIF.
+  CV_TAX_AMT = CEIL( LV_TAX ).
+  CV_AMT_DOCCUR =  IV_AMT_DOCCUR - CV_TAX_AMT.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form SET_BUTTON
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM SET_BUTTON .
+  DATA SMP_DYNTXT TYPE SMP_DYNTXT.
+  CLEAR SMP_DYNTXT.
+  SMP_DYNTXT-TEXT = TEXT-T01.
+  SMP_DYNTXT-ICON_ID = '@49@'.
+  SMP_DYNTXT-ICON_TEXT = TEXT-T01.
+  SMP_DYNTXT-QUICKINFO = TEXT-T01.
+  SSCRFIELDS-FUNCTXT_01 = SMP_DYNTXT.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form DOWNLOAD_TEMPLATE
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM DOWNLOAD_TEMPLATE .
+  DATA: LS_RETURN TYPE BAPIRET2.
+  DATA: LS_WWWDATA_TAB TYPE WWWDATATAB.
+  DATA: P_OBJECT_NAME TYPE W3OBJID VALUE 'ZTP_ZFIE001'.
+  CLEAR: LS_RETURN.
+
+*Make sure template exists in SMw0 as binary object
+  SELECT * FROM WWWDATA INNER JOIN TADIR
+                ON WWWDATA~OBJID = TADIR~OBJ_NAME
+                INTO  CORRESPONDING FIELDS OF LS_WWWDATA_TAB UP TO 1 ROWS
+                WHERE WWWDATA~SRTF2 = 0
+                AND   WWWDATA~RELID = 'MI'
+                AND   TADIR~PGMID    = 'R3TR'
+                AND   TADIR~OBJECT   = 'W3MI'
+                AND   TADIR~OBJ_NAME = P_OBJECT_NAME.
+  ENDSELECT.
+  IF SY-SUBRC <> 0.
+    LS_RETURN-TYPE = 'E'.
+    LS_RETURN-ID = 'OO'.
+    LS_RETURN-NUMBER = '000'.
+    LS_RETURN-MESSAGE_V1 =  'Template'.
+    LS_RETURN-MESSAGE_V2 = P_OBJECT_NAME.
+    LS_RETURN-MESSAGE_V3 =  'does not exist in'.
+    LS_RETURN-MESSAGE_V4 =  'transaction SMW0'.
+
+    MESSAGE ID 'OO' TYPE 'E' NUMBER '000'
+            WITH 'Template' P_OBJECT_NAME 'does not exist in'
+       INTO LS_RETURN-MESSAGE.
+    EXIT.
+  ENDIF.
+
+  CALL FUNCTION 'DOWNLOAD_WEB_OBJECT'
+    EXPORTING
+      KEY = LS_WWWDATA_TAB.
+ENDFORM.
+*&---------------------------------------------------------------------*
+*& Form CHECK_FILE_EXIST
+*&---------------------------------------------------------------------*
+*& text
+*&---------------------------------------------------------------------*
+*& -->  p1        text
+*& <--  p2        text
+*&---------------------------------------------------------------------*
+FORM CHECK_FILE_EXIST .
+  DATA: LW_FILE   TYPE STRING,
+        LW_RESULT TYPE ABAP_BOOL.
+
+  LW_FILE = P_FILE.
+  CALL METHOD CL_GUI_FRONTEND_SERVICES=>FILE_EXIST
+    EXPORTING
+      FILE                 = LW_FILE
+    RECEIVING
+      RESULT               = LW_RESULT
+    EXCEPTIONS
+      CNTL_ERROR           = 1
+      ERROR_NO_GUI         = 2
+      WRONG_PARAMETER      = 3
+      NOT_SUPPORTED_BY_GUI = 4
+      OTHERS               = 5.
+  IF LW_RESULT IS INITIAL.
+    MESSAGE 'File is not exist' TYPE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+ENDFORM.

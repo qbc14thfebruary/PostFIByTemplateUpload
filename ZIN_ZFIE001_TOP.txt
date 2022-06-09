@@ -1,0 +1,74 @@
+*&---------------------------------------------------------------------*
+*& Include          ZIN_ZFIE001_TOP
+*&---------------------------------------------------------------------*
+TABLES: SSCRFIELDS.
+TYPES: BEGIN OF GTY_RAW,
+         COMP_CODE       TYPE STRING, "1
+         DOC_DATE        TYPE STRING, "2
+         PSTNG_DATE      TYPE STRING, "3
+         PERIOD          TYPE STRING, "4
+         HEADER_TXT      TYPE STRING, "5
+         REF_DOC_NO      TYPE STRING, "6
+         DOC_TYPE        TYPE STRING, "7
+         EXCH_RATE       TYPE STRING, "8
+         PSTNG_KEY       TYPE STRING, "9
+         ACCOUNT         TYPE STRING, "10
+         GL_ACCOUNT      TYPE STRING, "11
+         CURRENCY        TYPE STRING, "12
+         SP_GL_IND       TYPE STRING, "13
+         AMT_DOCCUR      TYPE STRING, "14
+         AMT_LOCCUR      TYPE STRING, "15,
+         TAX_CODE        TYPE STRING, "16
+         AMT_BASE        TYPE STRING, "   46
+         TAX_AMT         TYPE STRING, "17
+         BUSINESSPLACE   TYPE STRING, "    47
+         BUS_AREA        TYPE STRING, "18
+         COSTCENTER      TYPE STRING, "19
+         ORDERID         TYPE STRING, "20
+         PROFIT_CTR      TYPE STRING, "21
+         FUNDS_CTR       TYPE STRING, "22
+         FUNC_AREA_LONG  TYPE STRING,
+         CMMT_ITEM       TYPE STRING, "23
+         KUNNR           TYPE STRING, "24
+         DICH_VU_CTEL    TYPE STRING, "25,
+         THI_TRUONG_CTEL TYPE STRING, "26
+         TOA_NHA         TYPE STRING, "27,
+         DU_AN           TYPE STRING, "28
+         ALLOC_NMBR      TYPE STRING, "29
+         PYMT_TERM       TYPE STRING, "30
+         PYMT_BLOCK      TYPE STRING, "31
+         BLINE_DATE      TYPE STRING, "32
+         PYMT_METH       TYPE STRING, "33
+         ITEM_TEXT       TYPE STRING, "34
+         REASON_CODE     TYPE STRING, "35
+         CS_TRANS_T      TYPE STRING, "36
+         REF_KEY_1       TYPE STRING, "37
+         REF_KEY_2       TYPE STRING, "38
+         REF_KEY_3       TYPE STRING, "39
+         INVID_PAYE      TYPE STRING, "40
+*         ALT_PAYEE       TYPE STRING,
+         NAME1           TYPE STRING, "41
+         ADDRESS         TYPE STRING, "42
+         CITY            TYPE STRING, "43
+         TAX_NUM         TYPE STRING, "44
+       END OF GTY_RAW .
+DATA: GT_RAW TYPE TABLE OF GTY_RAW,
+      GS_RAW TYPE GTY_RAW.
+DATA: GT_DATA   TYPE TABLE OF ZST_FIE001,
+      GT_UPLOAD TYPE TABLE OF ZST_FIE001,
+      GS_DATA   TYPE ZST_FIE001,
+      GS_UPLOAD TYPE ZST_FIE001.
+DATA: GT_FCAT TYPE SLIS_T_FIELDCAT_ALV,
+      GS_FCAT LIKE LINE OF GT_FCAT,
+      GS_LAYO TYPE SLIS_LAYOUT_ALV.
+GS_LAYO-COLWIDTH_OPTIMIZE = 'X'.
+
+SELECTION-SCREEN BEGIN OF BLOCK A1 WITH FRAME TITLE TEXT-001.
+SELECTION-SCREEN FUNCTION KEY 1.
+PARAMETERS: P_FILE LIKE RLGRAP-FILENAME.
+*PARAMETERS: P_POST RADIOBUTTON GROUP RAD1 DEFAULT 'X' USER-COMMAND RAD,
+*            P_PARK RADIOBUTTON GROUP RAD1.
+PARAMETERS: P_POST TYPE C LENGTH 1 DEFAULT 'X' NO-DISPLAY,
+            P_PARK TYPE C LENGTH 1 NO-DISPLAY.
+SELECTION-SCREEN END OF BLOCK A1.
+DATA: GO_GET_TEMP TYPE REF TO ZCL_GET_TEMPLATE.
