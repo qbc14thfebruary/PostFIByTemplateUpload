@@ -1,10 +1,4 @@
-*&---------------------------------------------------------------------*
-*& Program  : Upload chứng từ thanh toán từ hệ thống kế toán sang hệ thống SAP
-*& Created Date  : 02.03.2022
-*& Last changed  : 04.05.2022
-*& Created User  : QuynhBC
-*& TR: DE1K906175
-*&---------------------------------------------------------------------*
+
 REPORT ZPG_ZFIE001.
 INCLUDE ZIN_ZFIE001_TOP.
 INCLUDE ZIN_ZFIE001_F01.
